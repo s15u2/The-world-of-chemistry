@@ -1,0 +1,231 @@
+<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>عالم الكيمياء</title>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#10162b;--fg:#f4efe6;--ac:#e8b04a;--g:rgba(16,22,43,.92);color-scheme:dark}
+*{box-sizing:border-box}html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--fg);font-family:Tajawal,sans-serif;user-select:none;-webkit-user-select:none}
+canvas{display:block;touch-action:none}
+button{font:inherit;color:var(--fg);background:#26305a;border:1px solid #4a578f;border-radius:12px;padding:10px 14px;margin:4px 0 0 6px}
+button:focus-visible{outline:3px solid var(--ac)}
+#hud{position:fixed;top:0;left:0;right:0;display:flex;justify-content:space-between;gap:8px;padding:calc(env(safe-area-inset-top,0px) + 10px) 12px 0;pointer-events:none}
+#hud>*{pointer-events:auto;background:var(--g);border-radius:12px;padding:8px 12px;font-weight:700}
+#hud button{margin:0}
+#act{position:fixed;right:16px;bottom:calc(env(safe-area-inset-bottom,0px) + 40px);background:var(--ac);color:#10162b;font-weight:800;border:0;border-radius:16px;padding:16px 18px;max-width:46vw}
+#joy{position:fixed;left:18px;bottom:calc(env(safe-area-inset-bottom,0px) + 36px);width:128px;height:128px;border-radius:50%;background:#ffffff26;border:2px solid #ffffff55;touch-action:none;display:grid;place-items:center}
+#joy i{width:54px;height:54px;border-radius:50%;background:#ffffffaa}
+#hint{position:fixed;bottom:calc(env(safe-area-inset-bottom,0px) + 6px);width:100%;text-align:center;font-size:12px;opacity:.8;pointer-events:none}
+#P{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 10px);transform:translateX(-50%);width:min(94vw,500px);max-height:64vh;overflow:auto;background:var(--g);border:1px solid #4a578f;border-radius:20px;padding:16px;line-height:1.8}
+#Pt{font-size:19px;font-weight:800;color:var(--ac)}#Pb p{margin:6px 0}
+#bk{width:84px;height:96px;border:3px solid #fff8;border-top:none;border-radius:0 0 18px 18px;position:relative;overflow:hidden;margin:6px auto}
+#lq{position:absolute;bottom:0;left:0;right:0;height:0;transition:all .9s}
+#lq.fx::after{content:"";position:absolute;inset:0;background:radial-gradient(circle,#fffb 2px,transparent 3px) 0 0/14px 14px;animation:up 1s linear infinite}
+@keyframes up{to{background-position:0 -14px}}
+#start{position:fixed;inset:0;background:radial-gradient(circle at 50% 30%,#2b3a78,var(--bg));display:grid;place-content:center;text-align:center;padding:24px;gap:12px}
+#start h1{font-size:clamp(40px,12vw,76px);margin:0;font-weight:800;color:var(--ac)}
+#start p{max-width:420px;margin:0 auto;line-height:1.9}
+#start button{background:var(--ac);color:#10162b;font-weight:800;font-size:20px;border:0;padding:14px 30px}
+[hidden]{display:none!important}
+</style></head><body>
+<div id="hud"><span id="loc">المدخل الرئيسي</span><span><button id="cartb">السلة (<b id="cn">0</b>)</button> <button id="snd">الصوت</button></span></div>
+<button id="act" hidden></button><div id="joy"><i></i></div>
+<div id="hint">اسحب الشاشة للالتفات • اضغط على الأشياء أو زر التفاعل • مفاتيح: WASD و E</div>
+<div id="P" hidden><div id="Pt"></div><div id="Pb"></div><div id="Pa"></div></div>
+<div id="start"><h1>عالم الكيمياء</h1><p>مركز علمي ثلاثي الأبعاد بخمسة أقسام: الورد، الصحة، الجمال، الحياة اليومية، والسعودية. تجوّل وتحدّث مع المشرفات وجرّب وتسوّق.</p><button id="go">ادخل العالم</button></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const T=THREE,$=id=>document.getElementById(id);
+const rr=(a,b)=>a+Math.random()*(b-a),pick=a=>a[Math.random()*a.length|0];
+const R=new T.WebGLRenderer({antialias:true});R.setPixelRatio(Math.min(devicePixelRatio,2));R.shadowMap.enabled=true;document.body.prepend(R.domElement);
+const S=new T.Scene();S.background=new T.Color(0xcfe3f0);S.fog=new T.Fog(0xcfe3f0,35,100);
+const C=new T.PerspectiveCamera(60,1,.1,200);
+S.add(new T.HemisphereLight(0xffffff,0x8a7f70,1));
+const sun=new T.DirectionalLight(0xfff2d8,.8);sun.position.set(12,30,18);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);
+Object.assign(sun.shadow.camera,{left:-38,right:38,top:30,bottom:-30,far:80});S.add(sun);
+const M=(c,r=.8)=>new T.MeshStandardMaterial({color:c,roughness:r});
+function box(w,h,d,c,x,y,z,p=S){const m=new T.Mesh(new T.BoxGeometry(w,h,d),M(c));m.position.set(x,y,z);m.castShadow=m.receiveShadow=true;p.add(m);return m}
+function cyl(a,b,h,c,x,y,z,p=S){const m=new T.Mesh(new T.CylinderGeometry(a,b,h,16),M(c,.5));m.position.set(x,y,z);m.castShadow=true;p.add(m);return m}
+function sph(r,c,x,y,z,p=S){const m=new T.Mesh(new T.SphereGeometry(r,16,12),M(c,.6));m.position.set(x,y,z);m.castShadow=true;p.add(m);return m}
+function sign(txt,w,h,bg,fg,x,y,z,ry){const c=document.createElement('canvas');c.width=512;c.height=Math.round(512*h/w);const g=c.getContext('2d');g.fillStyle=bg;g.fillRect(0,0,c.width,c.height);g.fillStyle=fg;g.textAlign='center';g.textBaseline='middle';g.direction='rtl';let fs=84;do{g.font=`800 ${fs}px Tajawal,sans-serif`;fs-=4}while(g.measureText(txt).width>c.width-30&&fs>14);g.fillText(txt,256,c.height/2);
+const m=new T.Mesh(new T.PlaneGeometry(w,h),new T.MeshBasicMaterial({map:new T.CanvasTexture(c)}));m.position.set(x,y,z);m.rotation.y=ry;S.add(m);return m}
+function tag(g,txt){const c=document.createElement('canvas');c.width=320;c.height=72;const x=c.getContext('2d');x.fillStyle='#10162bdd';x.fillRect(0,0,320,72);x.fillStyle='#e8b04a';x.font='800 34px Tajawal,sans-serif';x.textAlign='center';x.textBaseline='middle';x.direction='rtl';x.fillText(txt,160,38);
+const s=new T.Sprite(new T.SpriteMaterial({map:new T.CanvasTexture(c)}));s.scale.set(1.5,.34,1);s.position.y=2.15;g.add(s)}
+/* humans */
+const GB=new T.BoxGeometry(1,1,1),GS=new T.SphereGeometry(1,16,12),GC=new T.CylinderGeometry(1,1,1,10),GA=new T.CylinderGeometry(.14,.3,1.1,14);
+function part(G,c,sx,sy,sz,x,y,z,p){const m=new T.Mesh(G,M(c,.85));m.scale.set(sx,sy,sz);m.position.set(x,y,z);m.castShadow=true;p.add(m);return m}
+function human(o){const g=new T.Group();
+part(GB,o.top,.46,.62,.26,0,1.25,0,g);
+if(o.abaya!=null)part(GA,o.abaya,1,1,1,0,.6,0,g);
+const L=[-1,1].map(sx=>{const p=new T.Group();p.position.set(sx*.12,.85,0);g.add(p);part(GC,o.bot,.075,.8,.075,0,-.4,0,p);part(GB,0x222222,.1,.07,.2,0,-.82,.04,p);return p});
+const A=[-1,1].map(sx=>{const p=new T.Group();p.position.set(sx*.29,1.5,0);g.add(p);part(GC,o.top,.055,.6,.055,0,-.3,0,p);part(GS,o.skin,.05,.05,.05,0,-.63,0,p);return p});
+part(GS,o.skin,.13,.15,.13,0,1.72,0,g);
+if(o.hij!=null){part(GS,o.hij,.16,.18,.16,0,1.73,-.015,g);part(GA,o.hij,.95,.4,.8,0,1.5,-.01,g);part(GS,o.skin,.1,.12,.06,0,1.72,.1,g)}
+[-1,1].forEach(sx=>part(GS,0x1a1a1a,.013,.013,.013,sx*.04,1.74,.155,g));
+g.userData={L,A};return g}
+const SK=[0xf0c8a0,0xd8a27a,0xb87a55,0x8a5a3c],AB=[0x1b1b1f,0x23324a,0x3b2f35,0x2f3d36,0x4a3b52],HJ=[0x1b1b1f,0xf1e8d8,0x7a4b6e,0x2c5a73,0xb6905a],TP=[0xc2476b,0x3b82a0,0x6a9955,0xd89a3c,0x7a65b8];
+const NP=[],IA=[],W=[],BL=[],DR=[];
+function spawn(x,z,mode,o={}){const sit=mode==='sit';
+const g=human({skin:pick(SK),top:o.top??pick(TP),bot:0x2b2f3a,abaya:sit?null:(o.abaya===undefined?pick(AB):o.abaya),hij:o.hij??pick(HJ)});
+g.position.set(x,sit?-.38:0,z);S.add(g);
+const n={g,mode,x,z,t:rr(0,6),f:o.f,r:o.r,tg:null,sit};
+if(o.f)g.rotation.y=Math.atan2(o.f[0]-x,o.f[1]-z);
+if(o.name)tag(g,o.name);NP.push(n);return n}
+const inR=(x,z)=>W.some(r=>x>r[0]&&x<r[1]&&z>r[2]&&z<r[3]);
+const free=(x,z)=>inR(x,z)&&!BL.some(r=>x>r[0]&&x<r[1]&&z>r[2]&&z<r[3]);
+const blk=(x,z,w,d)=>BL.push([x-w/2,x+w/2,z-d/2,z+d/2]);
+function reg(obj,ia){IA.push(ia);obj.traverse(m=>m.userData.ia=ia)}
+/* UI */
+const PP=$('P'),Pt=$('Pt'),Pb=$('Pb'),Pa=$('Pa');let open=false;
+function P(t,html,btns=[]){Pt.textContent=t;Pb.innerHTML=html;Pa.innerHTML='';[...btns,{t:'إغلاق',f:cl}].forEach(b=>{const e=document.createElement('button');e.textContent=b.t;e.onclick=b.f;Pa.appendChild(e)});PP.hidden=false;open=true}
+function cl(){PP.hidden=true;open=false}
+const cart=[];
+function addC(it){cart.push(it);$('cn').textContent=cart.length}
+function showCart(){const tot=cart.reduce((a,b)=>a+b[1],0);P('سلة المشتريات',cart.length?'<ul>'+cart.map(x=>`<li>${x[0]} — ${x[1]} نقطة</li>`).join('')+`</ul><p>المجموع: ${tot} نقطة تعليمية</p>`:'<p>السلة فارغة. زر المتجر في أي قسم.</p>',[{t:'تفريغ السلة',f:()=>{cart.length=0;$('cn').textContent=0;cl()}}])}
+$('cartb').onclick=showCart;
+function exp(r){const e=r.ex;let i=0;P(e.t,'<div id="bk"><div id="lq"></div></div><p id="q"></p><div id="o"></div>');const lq=$('lq'),q=$('q'),o=$('o');
+const step=()=>{if(i>=e.s.length){q.innerHTML='<b>النتيجة:</b> '+e.r;o.innerHTML='';return}
+const s=e.s[i];q.textContent=s.q;o.innerHTML='';
+s.o.map((t,k)=>[t,k]).sort(()=>Math.random()-.5).forEach(([t,k])=>{const b=document.createElement('button');b.textContent=t;b.onclick=()=>{if(k===0){lq.style.background=s.c;lq.style.height=s.h+'%';lq.className=s.fx?'fx':'';i++;step()}else q.textContent='ليست مناسبة: '+s.w};o.appendChild(b)})};step()}
+function sup(r){P('المشرفة '+r.sn+' — '+r.n,`<p>${r.hi}</p>`,[...r.qa.map(([a,b])=>({t:a,f:()=>{Pb.innerHTML='<p>'+b+'</p>'}})),{t:'ابدأ تجربة في المختبر',f:()=>exp(r)}])}
+/* models */
+const MD={
+rose:()=>{const g=new T.Group();cyl(.03,.03,.5,0x3c7a3a,0,.25,0,g);sph(.18,0xc2203f,0,.58,0,g);sph(.12,0xe03a5c,0,.66,0,g);return g},
+heart:()=>{const g=new T.Group();sph(.25,0xc0242b,0,.4,0,g);sph(.15,0xd9404a,.14,.62,0,g);cyl(.04,.04,.3,0x4a6fa5,-.1,.7,0,g);return g},
+stomach:()=>{const g=new T.Group();sph(.26,0xe59a9a,0,.35,0,g).scale.set(1.4,.9,.8);return g},
+bottle:(c=0xb48bd0)=>{const g=new T.Group();cyl(.12,.12,.4,c,0,.2,0,g);cyl(.05,.05,.12,0xe8c46a,0,.46,0,g);return g},
+flask:(c=0x7fd3e8)=>{const g=new T.Group();const m=cyl(.05,.2,.35,c,0,.2,0,g);m.material.transparent=true;m.material.opacity=.7;cyl(.05,.05,.2,c,0,.45,0,g);return g},
+bread:()=>{const g=new T.Group();sph(.25,0xc98b4a,0,.2,0,g).scale.set(1.5,.7,.8);return g},
+tower:()=>{const g=new T.Group();cyl(.03,.3,1,0x555a66,0,.5,0,g);cyl(.02,.2,.5,0x7a808c,0,1.15,0,g);sph(.05,0xd9443a,0,1.45,0,g);return g},
+palm:()=>{const g=new T.Group();cyl(.07,.1,1,0x7a5a3a,0,.5,0,g);for(let i=0;i<6;i++){const l=cyl(.01,.1,.7,0x2e7d4f,Math.cos(i)*.3,1.05,Math.sin(i)*.3,g);l.rotation.set(Math.sin(i)*1.1,0,-Math.cos(i)*1.1)}return g}};
+function deco(k,x,z){const g=new T.Group();g.position.set(x,0,z);S.add(g);blk(x,z,2.6,1.2);
+if(k==='rose'){box(2.4,.5,1,0x7a5a3a,0,.25,0,g);for(let i=0;i<6;i++){const f=MD.rose();f.position.set(-1+i*.4,.5,rr(-.2,.2));g.add(f)}}
+if(k==='health'){box(1.6,1.9,.8,0xdfe6ea,0,.95,0,g);[0,1,2].forEach(i=>{const b=MD.flask([0xe45858,0x58a5e4,0x7ad17a][i]);b.position.set(-.5+i*.5,1.9,0);g.add(b)})}
+if(k==='beauty'){box(2,.9,.9,0xf0e6ee,0,.45,0,g);box(1.4,1.5,.05,0xdff0f5,0,1.65,-.4,g);[0,1].forEach(i=>{const b=MD.bottle(i?0xf2b8c6:0xcfa5e0);b.position.set(-.5+i*1,.9,.1);g.add(b)})}
+if(k==='life'){box(2.4,.9,1,0xcfcfcf,0,.45,0,g);cyl(.25,.25,.3,0x888e99,-.6,1.05,0,g);const b=MD.bread();b.position.set(.5,.9,0);g.add(b)}
+if(k==='saudi'){const p=MD.palm();p.scale.setScalar(2.2);g.add(p)}}
+/* rooms */
+const RM=[
+{k:'rose',n:'كيمياء الورد',c:-20,s:-1,fl:0xe7c9d0,wl:0xf5e6ea,ac:0xc2476b,sn:'لمى',sc:'الورد: روائح وألوان من الكيمياء',
+hi:'أهلاً بك في حديقة الورد! هنا نتعرّف على كيمياء الروائح والألوان.',
+qa:[['من أين تأتي رائحة الورد؟','من زيوت عطرية طيّارة في البتلات، مثل جيرانيول وسيترونيلول، تتبخر بسهولة فتصل إلى أنفك.'],['لماذا تختلف ألوان الورد؟','بسبب أصباغ الأنثوسيانين والكاروتينات. ويتغير لون الأنثوسيانين مع الحموضة (pH).'],['كيف نصنع ماء الورد؟','بالتقطير بالبخار: يحمل البخار الزيوت الطيارة ثم يتكثف في مبرّد.']],
+F:[['rose','الوردة الجورية','بتلاتها تحمل زيوتًا عطرية طيّارة هي سر الرائحة. ويشتهر الورد الطائفي بماء الورد وزيته العطري.'],['rose','أصباغ الأنثوسيانين','تلوّن الورد الأحمر والبنفسجي، ويتغير لونها: أحمر في الوسط الحمضي وأزرق مخضرّ في القاعدي.'],['flask','التقطير بالبخار','يمر البخار على البتلات فيحمل الزيوت الطيارة ثم يتكثف فيعطي ماء الورد.']],
+sh:[['عطر الورد',25,'مزيج من زيوت عطرية طبيعية مذابة في كحول، يتبخر ببطء فتنتشر رائحته.',0xc2476b],['ماء الورد',15,'ناتج تقطير البتلات بالبخار ويحتوي آثارًا من الزيوت الطيارة.',0xf2b8c6],['صبغة نباتية',10,'مستخلص أصباغ نباتية يتغير لونه حسب الحموضة.',0x7a3b8c]],
+ex:{t:'تجربة: تقطير ماء الورد',s:[{q:'اختر المادة التي نستخلص منها العطر',o:['بتلات الورد','حجر','معدن'],w:'الحجر لا يحتوي زيوتًا عطرية.',c:'#f4a6b8',h:35},{q:'اختر طريقة الاستخلاص',o:['تسخين البتلات مع الماء وتكثيف البخار','سحق البتلات في الهواء','تجميد البتلات'],w:'الزيوت الطيارة تحتاج بخارًا يحملها ثم تكثيفًا.',c:'#f0d9c0',h:55,fx:1},{q:'اختر ما نبرّد به البخار',o:['مكثّف بماء بارد','موقد ساخن','وعاء مغلق بلا تبريد'],w:'التكثف يحتاج تبريدًا.',c:'#f9e6ee',h:70}],r:'حصلنا على ماء الورد: حمل البخار الزيوت الطيارة ثم تكثف (فصل فيزيائي بلا تفاعل جديد).'}},
+{k:'health',n:'كيمياء الصحة',c:0,s:-1,fl:0xd5e6ec,wl:0xeaf4f7,ac:0x2f8fb0,sn:'ريم',sc:'الصحة: كيمياء الجسم والدواء',
+hi:'أهلاً بك في مركز كيمياء الصحة! الجسم مصنع كيميائي كبير.',
+qa:[['ما علاقة الكيمياء بجسمي؟','جسمك يعتمد على آلاف التفاعلات: هضم الطعام، ونقل الأكسجين، وإنتاج الطاقة.'],['ما حمض المعدة؟','حمض الهيدروكلوريك، يساعد على هضم الطعام ويقتل كثيرًا من الجراثيم.'],['كيف تعمل مضادات الحموضة؟','هي قواعد ضعيفة تعادل جزءًا من الحمض: حمض + قاعدة → ملح + ماء.']],
+F:[['heart','القلب والدم','يضخ القلب الدم الذي ينقل الأكسجين بواسطة الهيموغلوبين، وهو بروتين يحتوي الحديد.'],['stomach','حمض المعدة','تفرز المعدة حمض الهيدروكلوريك لهضم الطعام، وتعادله مضادات الحموضة.'],['flask','الماء في الجسم','يشكّل نحو ٦٠٪ من جسم الإنسان البالغ، وهو وسط معظم التفاعلات الحيوية.']],
+sh:[['كتيّب التغذية',10,'يشرح الكربوهيدرات والبروتينات والدهون والفيتامينات.',0x3b82a0],['مجسّم القلب',30,'مجسّم تعليمي يوضح الدورة الدموية.',0xc0242b],['ورق كاشف pH',20,'لقياس الحموضة بأمان.',0x6a9955]],
+ex:{t:'تجربة: معادلة حمض المعدة',s:[{q:'اختر السائل الذي يمثل حمض المعدة',o:['حمض هيدروكلوريك مخفف','زيت','ماء مالح'],w:'هذا السائل ليس حمضًا.',c:'#e8c3c3',h:35},{q:'أضف كاشفًا للحموضة',o:['كاشف الكرنب الأحمر','سكر','ملح'],w:'السكر والملح لا يكشفان الحموضة.',c:'#d6336c',h:50},{q:'أضف مضاد حموضة (قاعدة ضعيفة)',o:['هيدروكسيد المغنيسيوم','عصير الليمون','خل'],w:'الليمون والخل حمضان.',c:'#7a5fc8',h:62,fx:1}],r:'تعادل: حمض + قاعدة → ملح + ماء. ارتفع الـ pH فتغيّر لون الكاشف من الأحمر إلى البنفسجي (تجربة افتراضية).'}},
+{k:'beauty',n:'كيمياء الجمال',c:20,s:-1,fl:0xe6dcef,wl:0xf4eef8,ac:0x9a6bb8,sn:'دانة',sc:'الجمال: كيمياء المستحضرات',
+hi:'أهلاً بك في مركز كيمياء الجمال! لنتعرّف على مكونات منتجاتنا.',
+qa:[['ما الكريم من الناحية الكيميائية؟','مستحلب: قطرات زيت موزعة في الماء (أو العكس) بمساعدة مادة مثبّتة.'],['ماذا يفعل الجلسرين؟','مرطّب يجذب الماء إلى الطبقة السطحية من الجلد.'],['كيف يحمي واقي الشمس؟','بمواد تمتص أو تعكس الأشعة فوق البنفسجية، مثل أكسيد الزنك.']],
+F:[['bottle','الكريم مستحلب','الماء والزيت لا يمتزجان وحدهما، فيثبّتهما مستحلب كشمع النحل.'],['bottle','واقي الشمس','يحتوي مواد تمتص أو تعكس الأشعة فوق البنفسجية.'],['bottle','الصابون','جزيئه له رأس محب للماء وذيل محب للدهون، فيزيل الدهون بالماء.']],
+sh:[['كريم مرطب',20,'يحتوي الجلسرين الذي يجذب الماء.',0xe9d3f0],['واقي شمس',35,'يحمي من الأشعة فوق البنفسجية ويُدهن قبل التعرض للشمس.',0xf2c94c],['صابون عطري',12,'يُصنع بتفاعل التصبّن بين الدهون والقلويات.',0x9ec5a8]],
+ex:{t:'تجربة: تحضير كريم مرطب',s:[{q:'اختر الطور الزيتي',o:['زيت اللوز','ملح','نحاس'],w:'غير مناسبة للبشرة.',c:'#efd9a0',h:30},{q:'أضف الطور المائي',o:['ماء','نفط خام','حمض مركز'],w:'مادة غير آمنة للبشرة.',c:'#e8ddc8',h:60},{q:'أضف المثبّت وحرّك',o:['شمع النحل (مستحلب)','رمل','ملح'],w:'نحتاج مستحلبًا يمسك الزيت والماء معًا.',c:'#faf3e6',h:65,fx:1}],r:'تكوّن مستحلب: قطرات الزيت موزعة في الماء ومثبّتة، فحصلنا على كريم متجانس.'}},
+{k:'life',n:'الكيمياء في الحياة',c:-10,s:1,fl:0xf0dfba,wl:0xfaf1dc,ac:0xd89a3c,sn:'سارة',sc:'الحياة: الكيمياء في بيتك',
+hi:'أهلاً بك في بيت الكيمياء! كل ما حولك مادة وتفاعل.',
+qa:[['لماذا ينتفخ الخبز؟','الخميرة تتغذى على السكر وتنتج غاز ثاني أكسيد الكربون.'],['ما الصدأ؟','اتحاد الحديد مع الأكسجين والرطوبة، وهو تفاعل أكسدة.'],['ما أهم قاعدة أمان؟','لا تخلط مواد التنظيف أبدًا، خصوصًا مبيّض الكلور مع الأمونيا.']],
+F:[['bread','الخبز','تنتج الخميرة ثاني أكسيد الكربون الذي ينفخ العجين.'],['bottle','تنبيه أمان','لا تخلط مبيّض الكلور مع الأمونيا أو غيرها؛ ينتج ذلك غازات سامة.'],['flask','الصدأ','يتكوّن عند اتحاد الحديد مع الأكسجين والرطوبة.']],
+sh:[['نظارة أمان',15,'تحمي العينين أثناء التجارب.',0x4aa3c8],['بيكربونات الصوديوم',8,'مسحوق قاعدي ضعيف للخبز والتنظيف.',0xf0f0f0],['ورق عباد الشمس',10,'أحمر في الحمض وأزرق في القاعدة.',0xd84c6f]],
+ex:{t:'تجربة: الخل والبيكربونات',s:[{q:'أضف السائل الحمضي',o:['خل (حمض الأسيتيك)','زيت','ماء'],w:'ليس حمضًا.',c:'#e9eef2',h:35},{q:'أضف المسحوق القاعدي',o:['بيكربونات الصوديوم','ملح الطعام','سكر'],w:'لا يتفاعلان مع الخل بهذه الطريقة.',c:'#f2f7fa',h:75,fx:1}],r:'حمض + بيكربونات → خلات الصوديوم + ماء + ثاني أكسيد الكربون. الفقاعات هي الغاز.'}},
+{k:'saudi',n:'كيمياء السعودية',c:10,s:1,fl:0xd9c9a3,wl:0xe3d3b0,ac:0x2e7d4f,sn:'هند',sc:'السعودية: كيمياء الوطن',
+hi:'أهلاً بك في قسم كيمياء المملكة! من النفط إلى المعادن.',
+qa:[['ما النفط كيميائيًا؟','خليط من الهيدروكربونات يُفصل بالتقطير التجزيئي.'],['ما البتروكيماويات؟','منتجات من النفط والغاز مثل البلاستيك والأسمدة.'],['ما المعادن في المملكة؟','الفوسفات والألمنيوم والذهب وغيرها.']],
+F:[['tower','النفط','يُفصل بالتقطير التجزيئي إلى بنزين وكيروسين وديزل وغيرها.'],['tower','البتروكيماويات','تُعد الجبيل وينبع من أكبر المدن الصناعية في المملكة.'],['palm','المعادن والمياه','تُنتج المملكة الفوسفات والألمنيوم والذهب، وهي من أكبر منتجي المياه المحلّاة.']],
+sh:[['مجسّم برج تقطير',30,'نموذج يوضح فصل مكوّنات النفط.',0x555a66],['عيّنة فوسفات',15,'مادة أولية للأسمدة.',0xb8a27a],['مجسّم جزيء إيثيلين',18,'أساس صناعة البلاستيك.',0x2e7d4f]],
+ex:{t:'تجربة: التقطير التجزيئي للنفط',s:[{q:'اختر الخام',o:['نفط خام','ماء','عصير'],w:'هذا ليس خامًا هيدروكربونيًا.',c:'#2b1d12',h:55},{q:'سخّن الخام',o:['تسخين في فرن','تبريد بالثلج','تركه كما هو'],w:'التقطير يبدأ بالتسخين.',c:'#5a3a14',h:70,fx:1},{q:'افصل المكوّنات بحسب',o:['درجة الغليان','اللون فقط','الرائحة فقط'],w:'الفصل يعتمد على اختلاف درجات الغليان.',c:'#b8751c',h:80}],r:'الأخف (غاز، بنزين) يصعد، ثم الكيروسين والديزل، ويبقى الأثقل أسفل: فصل فيزيائي بحسب درجة الغليان.'}}];
+const css=h=>'#'+h.toString(16).padStart(6,'0');
+function build(){
+box(200,.1,200,0x9fb18f,0,-.25,0);
+box(60,.2,8,0xcfc8bb,0,-.1,0);box(60,.01,2,0xe8b04a,0,.01,0);
+box(60.4,.3,8.4,0xf4f1ea,0,6.1,0).castShadow=false;
+[-30,30].forEach(x=>box(.4,6,8,0xe9e4da,x,3,0));
+W.push([-29.6,29.6,-3.8,3.8]);
+sign('أهلاً بك في عالم الكيمياء',12,3,'#10162b','#e8b04a',-29.75,3.6,0,Math.PI/2);
+for(const s of[-1,1]){const cs=RM.filter(r=>r.s===s).map(r=>r.c);let p=-30;
+cs.forEach(c=>{box(c-2-p,6,.4,0xe9e4da,(p+c-2)/2,3,s*4);p=c+2;box(4,2.5,.4,0xe9e4da,c,4.75,s*4)});box(30-p,6,.4,0xe9e4da,(p+30)/2,3,s*4)}
+RM.forEach(r=>{const s=r.s,c=r.c,zc=s*12,ry=s<0?0:Math.PI,W2=(lx,d)=>[c+lx,s*(4+d)],ac=css(r.ac);
+box(18,.2,16,r.fl,c,-.09,zc);box(18.4,.3,16.4,0xf4f1ea,c,6.1,zc).castShadow=false;
+box(18,6,.4,r.wl,c,3,s*20);[-9,9].forEach(sx=>box(.4,6,16,r.wl,c+sx,3,zc));box(18,.5,.45,r.ac,c,1,s*20);
+W.push([c-8.7,c+8.7,Math.min(s*4.6,s*19.7),Math.max(s*4.6,s*19.7)],[c-1.6,c+1.6,Math.min(s*3.5,s*5),Math.max(s*3.5,s*5)]);
+sign(r.n,6,1.2,ac,'#ffffff',c,4.6,s*4-s*.25,ry);
+sign(r.n,7,1.4,ac,'#ffffff',c,4.4,s*20-s*.22,ry);
+sign('المتجر',3,.8,'#10162b','#e8b04a',c+6.5,3.2,s*20-s*.22,ry);sign('المختبر',3,.8,'#10162b','#e8b04a',c-6,3.2,s*20-s*.22,ry);
+sign(r.sc,4.4,1.8,'#10162b','#e8b04a',c-8.76,2.4,s*9,Math.PI/2);
+const dl=box(2,3.4,.12,0x9fc3cf,c-1,1.7,s*4),dr=box(2,3.4,.12,0x9fc3cf,c+1,1.7,s*4);dl.material.transparent=dr.material.transparent=true;dl.material.opacity=dr.material.opacity=.55;DR.push({dl,dr,x:c,z:s*4,o:0});
+if(r.k==='saudi')for(let i=0;i<18;i++){const m=new T.Mesh(new T.ConeGeometry(.45,.8,4),M(0xf3ead8));m.position.set(c-8.5+i,6.5,s*20);m.rotation.y=Math.PI/4;S.add(m)}
+deco(r.k,...W2(-7.4,8.4));deco(r.k,...W2(7.4,7));
+/* bench, lab, shop */
+let [bx,bz]=W2(6,4);box(3,.45,.7,0x8a6b4a,bx,.225,bz);blk(bx,bz,3,.7);
+[bx,bz]=W2(-6,12);box(4.6,.95,1.5,0xe8ecee,bx,.475,bz);box(4.7,.06,1.6,0x2a2f3a,bx,.97,bz);blk(bx,bz,4.6,1.5);
+const f=MD.flask(r.ac);f.position.set(bx-1,.98,bz);S.add(f);const f2=MD.flask(0xffffff);f2.position.set(bx+.2,.98,bz);S.add(f2);
+const [lx,lz]=W2(-6,10.6);reg(f,{x:lx,z:lz,l:'ابدأ تجربة',f:()=>exp(r)});
+[bx,bz]=W2(6.5,11);box(4.2,.9,1.4,0xb08a5a,bx,.45,bz);blk(bx,bz,4.2,1.4);
+r.sh.forEach((it,i)=>{const m=MD.bottle(it[3]);m.position.set(bx-1.3+i*1.3,.9,bz);S.add(m);const [x,z]=W2(6.5-1.3+i*1.3,9.6);reg(m,{x,z,l:it[0],f:()=>P(it[0],`<p>${it[2]}</p><p>السعر: ${it[1]} نقطة تعليمية</p>`,[{t:'أضف إلى السلة',f:()=>{addC(it);cl()}}])})});
+r.F.forEach((F,i)=>{const [x,z]=W2(-2.7+i*2.7,14.6);cyl(.35,.4,.9,0xf1efe8,x,.45,z);const m=MD[F[0]]();m.position.set(x,.9,z);S.add(m);reg(m,{x,z:z-s*1.2,l:F[1],f:()=>P(F[1],`<p>${F[2]}</p>`)})});
+/* people */
+const rg=[c-3,c+3,Math.min(s*6,s*16.5),Math.max(s*6,s*16.5)];
+for(let i=0;i<3;i++)spawn(...W2(rr(-2,2),rr(3,12)),'walk',{r:rg});
+[5.4,6.6].forEach(l=>spawn(...W2(l,4),'sit',{f:[c-5,bz]}));
+[5,6.2].forEach(d=>{const [x,z]=W2(-6.4,d);spawn(x,z,'watch',{f:[c-9,z]})});
+[-7,-5.2].forEach(l=>{const [x,z]=W2(l,13.2);spawn(x,z,'work',{f:[x,s*16],abaya:0xf6f7f5})});
+[6,7.4].forEach(l=>{const [x,z]=W2(l,9.5);spawn(x,z,'work',{f:[x,s*15]})});
+const a=W2(-4.2,7.5),b=W2(-3,7.5);spawn(...a,'talk',{f:b});spawn(...b,'talk',{f:a});
+const [sx,sz]=W2(0,9.5),sp=spawn(sx,sz,'idle',{f:[c,s*4],abaya:0xf6f7f5,top:r.ac,hij:r.ac,name:'المشرفة '+r.sn});reg(sp.g,{x:sx,z:sz,l:'تحدّث مع المشرفة '+r.sn,f:()=>sup(r)});
+});
+/* hall */
+box(.8,1,4,0xb08a5a,-24,.5,0);blk(-24,0,.8,4);
+const rc=spawn(-25.4,0,'idle',{f:[-20,0],abaya:0x23324a,hij:0xf1e8d8,name:'الاستقبال'});reg(rc.g,{x:-25.4,z:0,l:'الاستقبال',f:()=>P('الاستقبال','<p>مرحبًا بك في عالم الكيمياء! على الشمال والجنوب خمسة أقسام: الورد، الصحة، الجمال، والحياة اليومية، والسعودية. كل قسم فيه مشرفة ومتجر ومختبر. الأبواب تفتح تلقائيًا عند الاقتراب.</p>')});
+[[-12,-3.3,-1],[12,-3.3,-1],[-20,3.3,1],[20,3.3,1]].forEach(([x,z,s])=>{box(3,.45,.7,0x8a6b4a,x,.225,z);blk(x,z,3,.7);spawn(x-.6,z,'sit',{f:[x,0]});spawn(x+.6,z,'sit',{f:[x,0]})});
+[-12,12].forEach(x=>{cyl(.45,.5,.9,0xf1efe8,x,.45,0);const g=new T.Group();sph(.2,0xd9443a,0,1.2,0,g);sph(.12,0xffffff,.22,1.05,.08,g);sph(.12,0xffffff,-.22,1.05,.08,g);g.position.set(x,0,0);S.add(g);blk(x,0,1,1);reg(g,{x,z:0,l:'جزيء الماء',f:()=>P('جزيء الماء H₂O','<p>ذرة أكسجين مرتبطة بذرتي هيدروجين، والزاوية بين الرابطتين نحو ١٠٤٫٥ درجة، ولذلك الجزيء قطبي.</p>')})});
+for(let i=0;i<4;i++)spawn(rr(-26,26),rr(-2,2),'walk',{r:[-26,26,-2.2,2.2]});
+}
+/* player & controls */
+const pl=human({skin:0xd9a47a,top:0x2f8fb0,bot:0x2b2f3a,abaya:0x2a2d4a,hij:0xf1e8d8});S.add(pl);
+let px=-20,pz=0,yaw=-Math.PI/2,pitch=.35,jv=[0,0],t0=0;pl.rotation.y=Math.PI/2;const keys={};
+addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=1;if(e.key.toLowerCase()==='e')doAct()});addEventListener('keyup',e=>keys[e.key.toLowerCase()]=0);
+const jy=$('joy'),kn=jy.firstElementChild;let jid=null;
+function mv(e){const b=jy.getBoundingClientRect();let x=(e.clientX-b.left-b.width/2)/(b.width/2),y=(e.clientY-b.top-b.height/2)/(b.height/2);const m=Math.hypot(x,y);if(m>1){x/=m;y/=m}jv=[x,y];kn.style.transform=`translate(${x*32}px,${y*32}px)`}
+jy.addEventListener('pointerdown',e=>{jid=e.pointerId;jy.setPointerCapture(jid);mv(e)});jy.addEventListener('pointermove',e=>{if(e.pointerId===jid)mv(e)});
+['pointerup','pointercancel'].forEach(t=>jy.addEventListener(t,()=>{jid=null;jv=[0,0];kn.style.transform=''}));
+let dn=null;const cv=R.domElement;
+cv.addEventListener('pointerdown',e=>{dn={x:e.clientX,y:e.clientY,px:e.clientX,py:e.clientY,t:Date.now(),m:0}});
+cv.addEventListener('pointermove',e=>{if(!dn)return;yaw-=(e.clientX-dn.px)*.006;pitch=Math.max(.05,Math.min(1,pitch+(e.clientY-dn.py)*.004));dn.m+=Math.abs(e.clientX-dn.px)+Math.abs(e.clientY-dn.py);dn.px=e.clientX;dn.py=e.clientY});
+cv.addEventListener('pointerup',e=>{if(dn&&dn.m<8&&Date.now()-dn.t<400)tap(e);dn=null});
+const rc2=new T.Raycaster(),mp=new T.Vector2();
+function tap(e){if(open)return;mp.set(e.clientX/innerWidth*2-1,-e.clientY/innerHeight*2+1);rc2.setFromCamera(mp,C);
+const h=rc2.intersectObjects(S.children,true).find(h=>h.object.userData.ia);if(!h)return;const ia=h.object.userData.ia;
+if(Math.hypot(ia.x-px,ia.z-pz)>6){$('loc').textContent='اقترب أكثر من: '+ia.l;return}ia.f()}
+let near=null;const ab=$('act');function doAct(){if(near&&!open)near.f()}ab.onclick=doAct;
+$('snd').onclick=snd;let AC;
+function snd(){if(!AC){AC=new(window.AudioContext||webkitAudioContext)();const b=AC.createBuffer(1,AC.sampleRate*2,AC.sampleRate),d=b.getChannelData(0);let l=0;for(let i=0;i<d.length;i++){l=(l+.02*(Math.random()*2-1))/1.02;d[i]=l*3.5}
+const s=AC.createBufferSource();s.buffer=b;s.loop=true;const g=AC.createGain();g.gain.value=.25;const f=AC.createBiquadFilter();f.type='lowpass';f.frequency.value=500;s.connect(f);f.connect(g);g.connect(AC.destination);s.start();AC.g=g}else AC.g.gain.value=AC.g.gain.value?0:.25}
+const la=(a,b,k)=>{let d=b-a;while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;return a+d*k};
+function limbs(u,s,k=.7){u.L[0].rotation.x=s;u.L[1].rotation.x=-s;u.A[0].rotation.x=-s*k;u.A[1].rotation.x=s*k}
+function frame(now){requestAnimationFrame(frame);const dt=Math.min((now-t0)/1000,.05);t0=now;
+let ix=(keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0)+jv[0],iy=(keys.w||keys.arrowup?1:0)-(keys.s||keys.arrowdown?1:0)-jv[1];
+const m=Math.min(1,Math.hypot(ix,iy));
+if(m>.05&&!open){const fx=-Math.sin(yaw),fz=-Math.cos(yaw),rx=Math.cos(yaw),rz=-Math.sin(yaw);let vx=fx*iy+rx*ix,vz=fz*iy+rz*ix;const l=Math.hypot(vx,vz);vx/=l;vz/=l;
+const sp=(keys.shift?6:3.2)*(jid!==null?Math.min(1.6,m*1.7):1)*dt;const nx=px+vx*sp,nz=pz+vz*sp;if(free(nx,pz))px=nx;if(free(px,nz))pz=nz;
+pl.rotation.y=la(pl.rotation.y,Math.atan2(vx,vz),.2);limbs(pl.userData,Math.sin(now/130)*.7)}else limbs(pl.userData,0);
+pl.position.set(px,0,pz);
+for(const n of NP){n.t+=dt;const u=n.g.userData,t=n.t;
+if(n.mode==='walk'){if(!n.tg||Math.hypot(n.tg[0]-n.x,n.tg[1]-n.z)<.3)n.tg=[rr(n.r[0],n.r[1]),rr(n.r[2],n.r[3])];
+const dx=n.tg[0]-n.x,dz=n.tg[1]-n.z,d=Math.hypot(dx,dz)||1;n.x+=dx/d*1.1*dt;n.z+=dz/d*1.1*dt;n.g.position.set(n.x,0,n.z);n.g.rotation.y=la(n.g.rotation.y,Math.atan2(dx,dz),.1);limbs(u,Math.sin(t*6)*.6)}
+else if(n.mode==='sit'){u.L[0].rotation.x=u.L[1].rotation.x=-1.5;u.A[0].rotation.x=u.A[1].rotation.x=-.9+Math.sin(t)*.05}
+else if(n.mode==='work'){limbs(u,0);u.A[0].rotation.x=-1.2+Math.sin(t*3)*.25;u.A[1].rotation.x=-1.1+Math.cos(t*2.6)*.25}
+else if(n.mode==='talk'){limbs(u,0);u.A[1].rotation.x=-.8+Math.sin(t*4+n.x)*.4;u.A[0].rotation.x=Math.sin(t*1.5)*.05}
+else{limbs(u,0);u.A[1].rotation.x=-.3+Math.sin(t*2)*.1;n.g.rotation.y=la(n.g.rotation.y,Math.atan2(px-n.x,pz-n.z),Math.hypot(px-n.x,pz-n.z)<5?.04:0)}}
+for(const d of DR){const tg=Math.hypot(px-d.x,pz-d.z)<5?1:0;d.o+=(tg-d.o)*Math.min(1,dt*4);d.dl.position.x=d.x-1-d.o*2;d.dr.position.x=d.x+1+d.o*2}
+near=null;let best=3.2;for(const i of IA){const dd=Math.hypot(i.x-px,i.z-pz);if(dd<best){best=dd;near=i}}
+ab.hidden=!near||open;if(near)ab.textContent=near.l;
+const rm=Math.abs(pz)<=3.8?'المدخل الرئيسي':(RM.find(r=>Math.abs(px-r.c)<9&&r.s*pz>4)||{n:'المدخل الرئيسي'}).n;if(!$('loc').textContent.startsWith('اقترب')||Math.random()<.02)$('loc').textContent=rm;
+let k=1,cx,cz;const dist=4.2,cp=Math.cos(pitch);
+for(;k>.25;k-=.12){cx=px+Math.sin(yaw)*cp*dist*k;cz=pz+Math.cos(yaw)*cp*dist*k;if(inR(cx,cz))break}
+C.position.set(cx,1.5+Math.sin(pitch)*dist*k,cz);C.lookAt(px,1.4,pz);R.render(S,C)}
+function size(){R.setSize(innerWidth,innerHeight);C.aspect=innerWidth/innerHeight;C.updateProjectionMatrix()}
+addEventListener('resize',size);size();
+$('go').onclick=()=>{$('start').hidden=true;snd()};
+Promise.race([document.fonts.load('800 40px Tajawal','أهلاً عالم الكيمياء'),new Promise(r=>setTimeout(r,2500))]).catch(()=>{}).then(()=>{build();requestAnimationFrame(frame)});
+</script></body></html>
